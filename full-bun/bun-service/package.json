@@ -1,0 +1,17 @@
+{
+  "name": "bun-service",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run --watch server.ts",
+    "build": "bun run build.ts",
+    "start": "NODE_ENV=production bun run server.ts",
+    "preview": "bun run build && bun run start"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "dependencies": {
+    "preact": "^10.29.8"
+  }
+}

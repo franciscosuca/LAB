@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data:; img-src 'self' data:; style-src 'self' 'unsafe-inline';" />
+  <title>QR Photo Bridge</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div>
+        <h1>&#128247; QR Photo Bridge</h1>
+        <p class="subtitle">Scan with your phone, snap a photo, watch it land here instantly.</p>
+      </div>
+      <span id="statusPill" class="pill pill--pending">Waiting for phone&hellip;</span>
+    </header>
+
+    <main class="layout">
+      <section class="panel panel--pair">
+        <div class="qr-card">
+          <img id="qrImage" alt="QR code to pair your phone" />
+        </div>
+
+        <p class="link-row">
+          <code id="linkText"></code>
+          <button id="copyLinkBtn" class="btn btn--ghost btn--small" type="button">Copy</button>
+        </p>
+
+        <label class="field" id="networkField">
+          <span>Network interface</span>
+          <select id="networkSelect"></select>
+        </label>
+
+        <p id="expiryText" class="muted"></p>
+
+        <div class="button-row">
+          <button id="newSessionBtn" class="btn btn--primary" type="button">New session</button>
+          <button id="testLocallyBtn" class="btn btn--ghost" type="button">Test with this computer</button>
+        </div>
+
+        <button id="requestCaptureBtn" class="btn btn--accent" type="button" disabled>
+          &#128276; Ask phone for a photo
+        </button>
+
+        <button id="openFolderBtn" class="btn btn--ghost btn--small btn--block" type="button">
+          Open photos folder
+        </button>
+
+        <ol class="steps">
+          <li>Open your phone&rsquo;s camera app.</li>
+          <li>Scan the QR code above (phone must be on the same Wi-Fi).</li>
+          <li>Take or choose a photo on your phone.</li>
+          <li>It shows up here automatically.</li>
+        </ol>
+      </section>
+
+      <section class="panel panel--gallery">
+        <div id="bigPreview" class="big-preview" hidden>
+          <img alt="Latest received photo" />
+          <div class="preview-meta"></div>
+          <div class="preview-actions">
+            <button id="revealBtn" class="btn btn--ghost btn--small" type="button" disabled>Show in folder</button>
+          </div>
+        </div>
+
+        <div id="emptyState" class="empty-state">
+          <p class="empty-state__title">No photos yet</p>
+          <p class="muted">Photos sent from your phone will appear here in real time.</p>
+        </div>
+
+        <div id="gallery" class="gallery"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+.DS_Store
+http3/.DS_Store
+http3/dist
+http3/build
+http3/results/*
+http3/.venv
+ios-test/.build/
+ios-test/.swiftpm/
+ios-test/DerivedData/
+ios-test/.DS_Store
+full-bun/node_modules
+full-bun/dist
+full-bun/.DS_store
+full-bun/bechmark/results
+qr-reader-electron/node_modules
+
+

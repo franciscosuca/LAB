@@ -1,0 +1,29 @@
+{
+  "name": "qr-reader-electron",
+  "productName": "QR Photo Bridge",
+  "version": "1.0.0",
+  "description": "Desktop Electron app that pairs with your phone via QR code so you can snap a photo on your mobile and see it appear instantly on your desktop.",
+  "private": true,
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": [
+    "electron",
+    "qrcode",
+    "camera",
+    "phone-pairing"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1",
+    "multer": "^2.3.0",
+    "qrcode": "^1.5.4",
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "electron": "^44.1.0"
+  }
+}

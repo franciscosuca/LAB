@@ -1,0 +1,31 @@
+# Byte-compiled / build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+
+# Generated at runtime - never commit local TLS material or benchmark output
+certs/*.pem
+certs/*.crt
+certs/*.key
+results/*.json
+results/*.csv
+results/*.png
+results/*.html
+
+# Keep the placeholder files so the (empty) directories are tracked
+!certs/.gitkeep
+!results/.gitkeep
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.log
+.DS_Store

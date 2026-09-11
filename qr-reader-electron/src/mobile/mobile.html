@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Send a photo &middot; QR Photo Bridge</title>
+  <link rel="stylesheet" href="/static/mobile.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <h1>&#128247; Send a photo</h1>
+      <p id="status" class="status status--pending">Connecting to desktop&hellip;</p>
+    </header>
+
+    <section class="card">
+      <video id="preview" autoplay playsinline muted hidden></video>
+      <canvas id="canvas" hidden></canvas>
+      <img id="shot" alt="Captured preview" hidden />
+
+      <div class="actions">
+        <button id="liveBtn" class="btn btn--ghost" type="button" hidden>Use live camera</button>
+        <button id="captureBtn" class="btn btn--primary" type="button" hidden>Take photo</button>
+
+        <label id="fileLabel" class="btn btn--primary" for="fileInput" hidden>
+          Open camera
+          <input id="fileInput" type="file" accept="image/*" capture="environment" hidden />
+        </label>
+
+        <button id="retakeBtn" class="btn btn--ghost" type="button" hidden>Retake</button>
+        <button id="sendBtn" class="btn btn--success" type="button" hidden>Send to desktop</button>
+      </div>
+    </section>
+
+    <p id="message" class="message"></p>
+    <p class="hint">Stay on this page &mdash; every photo you send appears instantly on your desktop.</p>
+  </main>
+
+  <script src="/static/mobile.js"></script>
+</body>
+</html>

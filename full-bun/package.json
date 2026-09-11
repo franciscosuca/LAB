@@ -1,0 +1,19 @@
+{
+  "name": "full-bun",
+  "private": true,
+  "type": "module",
+  "workspaces": ["bun-service", "vite-service", "benchmark"],
+  "scripts": {
+    "install:all": "bun install",
+    "dev:bun": "cd bun-service && bun run dev",
+    "build:bun": "cd bun-service && bun run build",
+    "start:bun": "cd bun-service && bun run start",
+    "dev:vite": "cd vite-service && bun run dev",
+    "build:vite": "cd vite-service && bun run build",
+    "start:vite": "cd vite-service && bun run start",
+    "bench": "cd benchmark && bun run bench",
+    "bench:quick": "cd benchmark && bun run bench:quick",
+    "bench:bun": "cd benchmark && bun run bench:bun",
+    "bench:vite": "cd benchmark && bun run bench:vite"
+  }
+}
