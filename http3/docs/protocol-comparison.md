@@ -4,6 +4,13 @@ This is the "why" behind the numbers `httpbench` produces. It's written to be
 read alongside actually running the tool - each section ends with how to
 reproduce the effect it describes.
 
+For a visual walkthrough first, open the
+[interactive protocol inspector](protocol-inspector.html) locally in a modern
+browser. Step through HTTP/1.1, HTTP/2, and HTTP/3 setup, illustrative compression
+tables, packet loss, and teardown. It runs offline with no Python installation;
+see the [lab README](../README.md#interactive-protocol-inspector) for usage and
+the model's simplifications. The scenarios below measure real traffic instead.
+
 ## 1. The stacks
 
 ```
