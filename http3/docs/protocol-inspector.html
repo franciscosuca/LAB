@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive HTTP Protocol Inspector (1.1, 2, 3)</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent-h1: #f59e0b;
+      --accent-h2: #3b82f6;
+      --accent-h3: #10b981;
+      --danger: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 20px; line-height: 1.5; }
+    a { color: #38bdf8; }
+    .container { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+    header { text-align: center; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+    h1 { font-size: 1.8rem; margin-bottom: 5px; }
+    .note { font-size: 0.85rem; color: var(--muted); margin-top: 10px; }
+
+    /* Protocol Tabs */
+    .tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+    .tab-btn { background: var(--card-bg); color: var(--muted); border: 1px solid var(--border); padding: 10px 24px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+    .tab-btn.active[data-version="h1"] { background: var(--accent-h1); color: #000; border-color: var(--accent-h1); }
+    .tab-btn.active[data-version="h2"] { background: var(--accent-h2); color: #fff; border-color: var(--accent-h2); }
+    .tab-btn.active[data-version="h3"] { background: var(--accent-h3); color: #000; border-color: var(--accent-h3); }
+
+    /* Inspector Grid Layout */
+    .inspector-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 20px; }
+    @media (max-width: 900px) { .inspector-grid { grid-template-columns: 1fr; } }
+    .card { min-width: 0; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+    .card-title { font-size: 1.1rem; font-weight: bold; color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Timeline & Sequence Diagram */
+    .swimlanes { display: flex; justify-content: space-between; gap: 10px; border-bottom: 2px solid var(--border); padding: 0 10px 10px; font-weight: bold; color: var(--muted); }
+    .sequence-window { height: 380px; overflow-y: auto; position: relative; border: 1px solid var(--border); border-radius: 8px; background: #0b1120; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+    .msg-row { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 8px; position: relative; padding: 8px 12px; border-radius: 6px; background: #162032; font-size: 0.85rem; border-left: 4px solid var(--border); }
+    .msg-row > span:nth-child(2) { min-width: 0; overflow-wrap: anywhere; text-align: center; }
+    .msg-row.c2s { border-left-color: #38bdf8; }
+    .msg-row.s2c { border-left-color: #a855f7; }
+    .msg-row.hol-blocked { border-left-color: var(--danger); background: #3b1418; }
+    .msg-badge { font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: rgba(255,255,255,0.1); }
+
+    /* Controls Panel */
+    .controls { display: flex; flex-wrap: wrap; gap: 15px; justify-content: space-between; align-items: center; background: var(--card-bg); border: 1px solid var(--border); padding: 15px 20px; border-radius: 12px; }
+    .btn-group { display: flex; flex-wrap: wrap; gap: 10px; }
+    button { background: #334155; color: var(--text); border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+    button:hover { background: #475569; }
+    button:focus-visible, a:focus-visible { outline: 3px solid #38bdf8; outline-offset: 3px; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* State Monitors */
+    .state-pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 0.85rem; text-align: center; background: #000; color: #fff; }
+    .table-container { overflow-x: auto; font-size: 0.8rem; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); }
+    .hol-box { background: #291518; border: 1px solid #7f1d1d; border-radius: 8px; padding: 12px; font-size: 0.85rem; color: #fca5a5; }
+  </style>
+</head>
+<body>
+<main class="container">
+  <header>
+    <h1>HTTP Protocol & State Machine Inspector</h1>
+    <p style="color: var(--muted)">Compare Handshakes, Dynamic Compression, Head-of-Line Blocking, and Teardown across HTTP/1.1, HTTP/2, and HTTP/3</p>
+    <p class="note">Illustrative steps, not a packet capture or benchmark. Compression entries are examples, not a full HPACK/QPACK implementation. QUIC removes cross-stream transport HOL, not shared congestion or application dependencies.</p>
+    <p class="note"><a href="../README.md">HTTP/3 lab</a> · <a href="protocol-comparison.md">Protocol comparison guide</a></p>
+  </header>
+
+  <!-- Protocol Version Tabs -->
+  <div class="tabs" role="group" aria-label="HTTP protocol version">
+    <button class="tab-btn active" data-version="h1" aria-pressed="true" onclick="switchVersion('h1')">HTTP/1.1 (TCP+TLS)</button>
+    <button class="tab-btn" data-version="h2" aria-pressed="false" onclick="switchVersion('h2')">HTTP/2 (TCP+TLS Multiplexed)</button>
+    <button class="tab-btn" data-version="h3" aria-pressed="false" onclick="switchVersion('h3')">HTTP/3 (QUIC over UDP)</button>
+  </div>
+
+  <!-- Inspector Body -->
+  <div class="inspector-grid">
+    <!-- Left Column: Sequence Diagram & Messages -->
+    <section class="card" aria-labelledby="sequenceTitle">
+      <h2 class="card-title" id="sequenceTitle">Communication Sequence Timeline</h2>
+      <div class="swimlanes">
+        <span>Client</span>
+        <span>Flow Direction</span>
+        <span>Server</span>
+      </div>
+      <div class="sequence-window" id="sequenceWindow" tabindex="0" aria-label="Communication sequence">
+        <!-- Dynamic message rows injected here -->
+      </div>
+    </section>
+
+    <!-- Right Column: Stateful Protocol Inspection -->
+    <section class="card" aria-labelledby="stateTitle">
+      <h2 class="card-title" id="stateTitle">Connection & Session State</h2>
+      <div>
+        <strong>Connection Phase State: </strong>
+        <span class="state-pill" id="statePill">CLOSED</span>
+      </div>
+
+      <h3 class="card-title" style="margin-top: 10px;">Header Compression Table (HPACK/QPACK)</h3>
+      <div class="table-container">
+        <table aria-label="Illustrative dynamic header compression table">
+          <thead>
+            <tr><th scope="col">Idx</th><th scope="col">Header Name</th><th scope="col">Header Value</th></tr>
+          </thead>
+          <tbody id="dynamicTableBody">
+            <tr><td colspan="3" style="color:var(--muted)">Dynamic table empty (Uninitialized)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="card-title" style="margin-top: 10px;">Head-Of-Line (HOL) Status</h3>
+      <div class="hol-box" id="holStatus">
+        Select a step to analyze Head-of-Line behavior.
+      </div>
+    </section>
+  </div>
+
+  <!-- Controls Footer -->
+  <div class="controls">
+    <div class="btn-group">
+      <button onclick="prevStep()" id="prevBtn">← Previous</button>
+      <button onclick="nextStep()" id="nextBtn">Next Step →</button>
+      <button onclick="resetSim()">Reset</button>
+    </div>
+    <div style="font-size: 0.9rem; color: var(--muted);" id="stepCounter" role="status" aria-live="polite">
+      Step 0 / 0
+    </div>
+  </div>
+  <noscript>This simulator requires JavaScript. Enable it to step through the protocol timelines.</noscript>
+</main>
+
+<script>
+  // Sequence datasets representing the full protocol lifecycle: Setup -> Data Exchange -> Teardown
+  const protocolData = {
+    h1: [
+      { phase: "HANDSHAKE", dir: "c2s", label: "TCP SYN", type: "Handshake", desc: "Client initiates TCP 3-way handshake." },
+      { phase: "HANDSHAKE", dir: "s2c", label: "TCP SYN-ACK", type: "Handshake", desc: "Server acknowledges TCP SYN." },
+      { phase: "HANDSHAKE", dir: "c2s", label: "TCP ACK", type: "Handshake", desc: "TCP connection established; TLS is next." },
+      { phase: "TLS_HANDSHAKE", dir: "c2s", label: "ClientHello (TLS 1.3)", type: "Security", desc: "Client proposes cryptographic cipher suites." },
+      { phase: "TLS_HANDSHAKE", dir: "s2c", label: "ServerHello + Cert + Finished", type: "Security", desc: "Server sends its TLS handshake flight." },
+      { phase: "ESTABLISHED", dir: "c2s", label: "TLS Finished", type: "Security", desc: "Client completes the TLS handshake." },
+      { phase: "ESTABLISHED", dir: "c2s", label: "GET /index.html (Req #1)", type: "Request", desc: "Request 1 dispatched." },
+      { phase: "ESTABLISHED", dir: "c2s", label: "GET /style.css (Req #2 - PIPELINED)", type: "Request", desc: "Illustrative HTTP/1.1 pipelining: response 2 must follow response 1. Modern browsers generally avoid pipelining." },
+      { phase: "ESTABLISHED", dir: "s2c", label: "200 OK (/index.html)", type: "Response", desc: "Server finishes Request 1 response." },
+      { phase: "ESTABLISHED", dir: "s2c", label: "200 OK (/style.css)", type: "Response", desc: "Response 2 can now be delivered on this connection." },
+      { phase: "TEARDOWN", dir: "c2s", label: "TLS close_notify Alert", type: "Close", desc: "Client alerts intent to close encrypted session." },
+      { phase: "TEARDOWN", dir: "c2s", label: "TCP FIN", type: "Close", desc: "Client sends TCP FIN to start connection teardown." },
+      { phase: "TEARDOWN", dir: "s2c", label: "TCP ACK + FIN", type: "Close", desc: "Server acknowledges FIN and closes its side (TLS close response omitted)." },
+      { phase: "CLOSED", dir: "c2s", label: "TCP ACK", type: "Close", desc: "Final ACK sent. TCP may retain TIME_WAIT state." }
+    ],
+    h2: [
+      { phase: "HANDSHAKE", dir: "c2s", label: "TCP SYN", type: "Handshake", desc: "Client initiates TCP handshake before TLS." },
+      { phase: "HANDSHAKE", dir: "s2c", label: "TCP SYN-ACK", type: "Handshake", desc: "Server acknowledges TCP SYN." },
+      { phase: "HANDSHAKE", dir: "c2s", label: "TCP ACK", type: "Handshake", desc: "TCP connection established; TLS is next." },
+      { phase: "TLS_HANDSHAKE", dir: "c2s", label: "TLS ClientHello (ALPN: h2)", type: "Security", desc: "Client requests HTTP/2 through TLS ALPN." },
+      { phase: "TLS_HANDSHAKE", dir: "s2c", label: "ServerHello + Cert + Finished (h2)", type: "Security", desc: "Server negotiates HTTP/2 and sends its TLS handshake flight." },
+      { phase: "ESTABLISHED", dir: "c2s", label: "TLS Finished + HTTP/2 Preface + SETTINGS", type: "Handshake", desc: "Client completes TLS and sends the HTTP/2 connection preface and settings." },
+      { phase: "ESTABLISHED", dir: "s2c", label: "SETTINGS + SETTINGS ACK", type: "Handshake", desc: "Server sends its settings and acknowledges the client's settings." },
+      { phase: "ESTABLISHED", dir: "c2s", label: "SETTINGS ACK", type: "Handshake", desc: "Client acknowledges the server's settings." },
+      { phase: "ESTABLISHED", dir: "c2s", label: "HEADERS Frame (Stream 1: GET /index.html)", type: "Multiplex", desc: "Stream 1 initialized. HPACK inserts illustrative dynamic entries; :method GET already has a static entry.", hpack: [{idx: 62, name: "user-agent", val: "Mozilla/5.0"}, {idx: 63, name: ":path", val: "/index.html"}] },
+      { phase: "ESTABLISHED", dir: "c2s", label: "HEADERS Frame (Stream 3: GET /style.css)", type: "Multiplex", desc: "Stream 3 sent concurrently without blocking Stream 1." },
+      { phase: "ESTABLISHED", dir: "s2c", label: "DATA Frames (Streams 1 & 3 Interleaved)", type: "Data", desc: "Frames interleaved on a single TCP connection." },
+      { phase: "ESTABLISHED", dir: "s2c", label: "⚠️ TCP Packet Loss Triggered!", type: "HOL_STALL", desc: "A TCP packet drops. Later bytes for both streams wait behind the gap until TCP retransmits the missing data." },
+      { phase: "ESTABLISHED", dir: "s2c", label: "TCP Retransmission (Streams Resume)", type: "Data", desc: "Missing bytes arrive; TCP can deliver buffered data and both streams resume." },
+      { phase: "TEARDOWN", dir: "s2c", label: "GOAWAY Frame (Last-Stream-ID: 3)", type: "Close", desc: "Server starts graceful shutdown; existing streams may finish, but no new requests are accepted." },
+      { phase: "TEARDOWN", dir: "c2s", label: "TLS close_notify + TCP FIN", type: "Close", desc: "After streams finish, client begins TLS/TCP closure." },
+      { phase: "TEARDOWN", dir: "s2c", label: "TCP ACK + FIN", type: "Close", desc: "Server acknowledges FIN and closes its side (TLS close response omitted)." },
+      { phase: "CLOSED", dir: "c2s", label: "TCP ACK", type: "Close", desc: "Final ACK sent. TCP may retain TIME_WAIT state." }
+    ],
+    h3: [
+      { phase: "HANDSHAKE", dir: "c2s", label: "QUIC Initial Packet (ClientHello)", type: "1-RTT", desc: "UDP datagram carries QUIC's TLS 1.3 ClientHello, not secret keys. This is a fresh connection, not a 0-RTT resumption." },
+      { phase: "HANDSHAKE", dir: "s2c", label: "QUIC Initial + Handshake (Server TLS Flight)", type: "1-RTT", desc: "Server sends its TLS 1.3 handshake flight using QUIC packets." },
+      { phase: "ESTABLISHED", dir: "c2s", label: "QUIC Handshake (Finished) + HTTP/3 SETTINGS", type: "1-RTT", desc: "Client completes TLS and sends HTTP/3 settings on its control stream. Packet acknowledgements are omitted." },
+      { phase: "ESTABLISHED", dir: "s2c", label: "HANDSHAKE_DONE + HTTP/3 SETTINGS", type: "1-RTT", desc: "Server confirms the QUIC handshake and sends its HTTP/3 settings, allowing illustrative QPACK dynamic entries." },
+      { phase: "ESTABLISHED", dir: "c2s", label: "QPACK Encoder Stream: Insert Headers", type: "Compression", desc: "QPACK encoder instructions populate the peer's dynamic table separately from request streams. Indices shown are illustrative absolute indices.", qpack: [{idx: 0, name: ":path", val: "/index.html"}, {idx: 1, name: "accept", val: "text/html"}] },
+      { phase: "ESTABLISHED", dir: "c2s", label: "HEADERS Frame (Stream 0: GET /index.html)", type: "Stream", desc: "QUIC Stream 0 initialized. This example assumes referenced QPACK entries are available." },
+      { phase: "ESTABLISHED", dir: "c2s", label: "HEADERS Frame (Stream 4: GET /style.css)", type: "Stream", desc: "QUIC Stream 4 initialized independently." },
+      { phase: "ESTABLISHED", dir: "s2c", label: "⚠️ QUIC Packet Carrying Stream 0 Data Lost!", type: "NO_HOL", desc: "Lost packet carries only Stream 0 data in this example. Stream 4 continues without waiting for Stream 0 retransmission." },
+      { phase: "ESTABLISHED", dir: "s2c", label: "Stream 0 Data Retransmitted in a New QUIC Packet", type: "Data", desc: "QUIC recovers the missing stream data while other streams remain independently deliverable." },
+      { phase: "TEARDOWN", dir: "c2s", label: "QUIC CONNECTION_CLOSE Frame", type: "Close", desc: "Client closes the QUIC connection with an application close code; no TCP FIN exchange is needed." },
+      { phase: "CLOSED", dir: "s2c", label: "Connection Enters Draining", type: "Close", desc: "Peer stops sending. QUIC retains closing/draining state for a timeout before releasing connection resources." }
+    ]
+  };
+
+  let currentVersion = 'h1';
+  let currentStep = 0;
+
+  function switchVersion(version) {
+    if (!Object.hasOwn(protocolData, version)) return;
+    currentVersion = version;
+    currentStep = 0;
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      const active = btn.dataset.version === version;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', String(active));
+    });
+    render();
+  }
+
+  function nextStep() {
+    if (currentStep < protocolData[currentVersion].length - 1) {
+      currentStep++;
+      render();
+    }
+  }
+
+  function prevStep() {
+    if (currentStep > 0) {
+      currentStep--;
+      render();
+    }
+  }
+
+  function resetSim() {
+    currentStep = 0;
+    render();
+  }
+
+  function render() {
+    const steps = protocolData[currentVersion];
+    const data = steps[currentStep];
+
+    // 1. Update Sequence Diagram Window
+    const win = document.getElementById('sequenceWindow');
+    win.replaceChildren();
+    for (let i = 0; i <= currentStep; i++) {
+      const step = steps[i];
+      const div = document.createElement('div');
+      div.className = `msg-row ${step.dir} ${step.type === 'HOL_STALL' ? 'hol-blocked' : ''}`;
+
+      const sender = document.createElement('span');
+      const direction = document.createElement('span');
+      const receiver = document.createElement('span');
+      sender.textContent = 'Client';
+      receiver.textContent = 'Server';
+      direction.textContent = step.dir === 'c2s' ? '──────► ' : '◄────── ';
+      const badge = document.createElement('span');
+      badge.className = 'msg-badge';
+      badge.textContent = step.label;
+      direction.appendChild(badge);
+      div.append(sender, direction, receiver);
+      win.appendChild(div);
+    }
+    win.scrollTop = win.scrollHeight;
+
+    // 2. Update State Pill
+    const statePill = document.getElementById('statePill');
+    statePill.textContent = data.phase;
+    statePill.style.background =
+      data.phase === 'ESTABLISHED' ? '#047857' :
+      data.phase === 'TEARDOWN' ? '#92400e' :
+      data.phase === 'CLOSED' ? '#64748b' : '#1d4ed8';
+
+    // 3. Update Compression Table (HPACK / QPACK)
+    const tableBody = document.getElementById('dynamicTableBody');
+    tableBody.replaceChildren();
+
+    // Scan up to current step for active headers
+    let activeHeaders = [];
+    for (let i = 0; i <= currentStep; i++) {
+      if (steps[i].hpack) activeHeaders = steps[i].hpack;
+      if (steps[i].qpack) activeHeaders = steps[i].qpack;
+    }
+    if (data.phase === 'CLOSED') activeHeaders = [];
+
+    if (activeHeaders.length === 0) {
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 3;
+      td.style.color = 'var(--muted)';
+      td.textContent = currentVersion === 'h1' ? 'Not applicable: HTTP/1.1 has no HPACK/QPACK table.' :
+        data.phase === 'CLOSED' ? 'Dynamic table cleared (Connection closed)' : 'Dynamic table empty (Uninitialized)';
+      tr.appendChild(td);
+      tableBody.appendChild(tr);
+    } else {
+      activeHeaders.forEach(h => {
+        const tr = document.createElement('tr');
+        [h.idx, h.name, h.val].forEach((value, index) => {
+          const td = document.createElement('td');
+          if (index === 0) {
+            td.textContent = value;
+          } else {
+            const code = document.createElement('code');
+            code.textContent = value;
+            td.appendChild(code);
+          }
+          tr.appendChild(td);
+        });
+        tableBody.appendChild(tr);
+      });
+    }
+
+    // 4. Update HOL Explanation; reset all colors when changing protocols
+    const holBox = document.getElementById('holStatus');
+    holBox.style.borderColor = '#334155';
+    holBox.style.background = '#1e293b';
+    holBox.style.color = '#f8fafc';
+    if (currentVersion === 'h1') {
+      holBox.style.borderColor = '#7f1d1d';
+      holBox.style.background = '#291518';
+      holBox.style.color = '#fca5a5';
+      holBox.textContent = 'HTTP/1.1 HOL Blocking: On this pipelined connection, response #2 must follow response #1. Separate connections can avoid this per-connection ordering.';
+    } else if (currentVersion === 'h2') {
+      if (data.type === 'HOL_STALL') {
+        holBox.style.borderColor = '#ef4444';
+        holBox.style.background = '#450a0a';
+        holBox.style.color = '#fca5a5';
+        holBox.textContent = 'TCP-Level HOL Blocking Active: Missing TCP bytes block later data for all multiplexed streams until recovered!';
+      } else {
+        holBox.textContent = 'HTTP/2 Streams Multiplexed: Multiple requests share one TCP connection. Avoids HTTP/1.1 response ordering, but remains vulnerable to TCP HOL.';
+      }
+    } else {
+      holBox.style.borderColor = '#047857';
+      holBox.style.background = '#064e3b';
+      holBox.style.color = '#a7f3d0';
+      holBox.textContent = 'HTTP/3 QUIC (No Cross-Stream Transport HOL): Loss of Stream 0 data does not require Stream 4 to wait. Shared congestion control, application dependencies, and QPACK dependencies can still affect progress.';
+    }
+
+    // 5. Buttons & Step Counter
+    document.getElementById('prevBtn').disabled = currentStep === 0;
+    document.getElementById('nextBtn').disabled = currentStep === steps.length - 1;
+    document.getElementById('stepCounter').textContent = `Step ${currentStep + 1} of ${steps.length}: ${data.desc}`;
+  }
+
+  // Initial render
+  render();
+</script>
+</body>
+</html>

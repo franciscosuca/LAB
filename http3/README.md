@@ -23,6 +23,29 @@ just reading about them. It includes:
 - [`docs/protocol-comparison.md`](docs/protocol-comparison.md): a from-scratch
   explanation of *why* HTTP/3 exists, mapped directly onto this project's
   scenarios and metrics.
+- An [interactive protocol inspector](docs/protocol-inspector.html) for stepping
+  through HTTP/1.1, HTTP/2, and HTTP/3 handshakes, header compression, packet
+  loss, and connection teardown without installing the Python toolkit.
+
+## Interactive protocol inspector
+
+Download or clone the lab and open `docs/protocol-inspector.html` directly in
+any modern browser with JavaScript enabled. It is a self-contained, offline
+HTML file: no server, dependencies, certificates, or network access needed.
+GitHub displays HTML source rather than running the simulator.
+
+Choose a protocol, use **Next Step** and **Previous** to inspect its timeline,
+connection phase, illustrative HPACK/QPACK table, and head-of-line status.
+**Reset** returns the selected protocol to its first step; switching protocols
+also starts a fresh timeline.
+
+This is an educational model, not a real network simulation or benchmark.
+Handshake flights and teardown are simplified, HTTP/1.1 illustrates pipelining
+on a single connection, and compression entries are illustrative. HTTP/3
+removes cross-stream *transport* HOL, but shared congestion control and
+application/QPACK dependencies can still delay streams. Read the
+[protocol comparison guide](docs/protocol-comparison.md) for context, then
+use the benchmark scenarios below to measure actual traffic.
 
 ## Requirements
 
@@ -220,6 +243,7 @@ src/httpbench/
     ├── network_impair.py           # optional tc/netem loss+delay injection (Linux)
     └── report.py                   # Rich tables, JSON/CSV export, PNG charts
 docs/protocol-comparison.md   # HTTP/2 vs HTTP/3 deep dive, mapped to this project
+docs/protocol-inspector.html  # offline HTTP/1.1, HTTP/2, and HTTP/3 interactive inspector
 tests/                        # unit tests (metrics/util) + a real end-to-end smoke test
 ```
 
